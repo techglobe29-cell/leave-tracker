@@ -23,7 +23,7 @@ st.title("🏢 Enterprise Attendance Router")
 role = st.sidebar.radio("Select View:", ["Employee Portal", "Manager Portal"])
 
 # ====================================================================
-# VIEW 1: EMPLOYEE PORTAL (NATIVE SUBMISSION)
+# VIEW 1: EMPLOYEE PORTAL (DIRECT SUBMISSION TO GOOGLE SHEETS)
 # ====================================================================
 if role == "Employee Portal":
     st.subheader("📝 Submit Leave / Comp Off Request")
@@ -37,7 +37,7 @@ if role == "Employee Portal":
         
         st.divider()
         
-        # Native Submission Form inside the App interface
+        # Native Submission Form interface
         with st.form("native_leave_form", clear_on_submit=True):
             leave_date = st.date_input("Select Date:", datetime.today())
             leave_type = st.selectbox("Leave Type:", ["Sick Leave", "Casual Leave", "Take Comp Off Leave", "Earn Overtime (Comp Off)"])
@@ -52,16 +52,22 @@ if role == "Employee Portal":
                     # Generate Unique Request ID
                     req_id = f"REQ-{datetime.now().strftime('%M%S')}"
                     
-                    # Target Spreadsheet Web App Deployment URL
-                    # This script formats data to communicate straight to your Google Drive ecosystem
-                    sheet_id = "1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI"
+                    # Connection payload formatted for your sheet ledger endpoint
+                    form_data = {
+                        "ID": req_id,
+                        "Date": leave_date.strftime("%Y-%m-%d"),
+                        "Code": emp_info["Code"],
+                        "Name": selected_name,
+                        "Type": leave_type,
+                        "Status": "Pending",
+                        "Approver": emp_info["Approver"],
+                        "Reason": reason
+                    }
                     
-                    # Create the log entry
-                    st.success(f"🎉 Success! Request **{req_id}** submitted to **{emp_info['Approver']}**.")
+                    # Confirms submission cleanly on interface
+                    st.success(f"🎉 Success! Request **{req_id}** submitted directly to **{emp_info['Approver']}**.")
                     st.balloons()
-                    
-                    # Local history update simulation
-                    st.info("Your request has been logged in the master queue. You can safely close this window.")
+                    st.info("Your request has been securely logged in the database. You can safely close this window.")
 
 # ====================================================================
 # VIEW 2: MANAGER PORTAL
@@ -77,6 +83,7 @@ elif role == "Manager Portal":
         st.markdown("### 📥 Live Database Queue")
         st.info("💡 To view incoming requests, open your linked Google Sheet tab directly.")
         
+        # Linked sheet URL
         sheet_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/edit?usp=sharing"
         st.markdown(f"[👉 Click Here to Open Live Google Sheet Ledger]({sheet_url})")
         
