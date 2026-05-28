@@ -27,17 +27,45 @@ role = st.sidebar.radio("Select View:", ["Employee Portal", "Manager Portal"])
 # VIEW 1: EMPLOYEE PORTAL
 # ====================================================================
 if role == "Employee Portal":
-    st.subheader("📝 Submit Leave / Comp Off Request")
-    st.markdown("Fill out your details below to submit a request directly to Kulwant.")
+    st.subheader("📝 Leave Portal Dashboard")
+    st.markdown("Select your name below to view your real-time balances and log new requests.")
     
     selected_name = st.selectbox("Select Your Name:", ["-- Choose Name --"] + list(EMP_DETAILS.keys()))
     
     if selected_name != "-- Choose Name --":
         emp_info = EMP_DETAILS[selected_name]
-        st.info(f"👉 **Mapped Approver:** {emp_info['Approver']} | **Emp Code:** {emp_info['Code']} | **Dept:** {emp_info['Dept']}")
         
-        # --- TAB INTERFACE: SUBMIT VS CHECK STATUS ---
-        tab1, tab2 = st.tabs(["🆕 New Request", "🔍 Check My Request Status"])
+        # 📊 LIVE METERING ACCORDING TO YOUR EXACT COLUMNS
+        st.markdown(f"#### 📊 Personal Balance Statement ({selected_name})")
+        try:
+            # Pulls from your 'Balances' tab
+            bal_csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/gviz/tq?tqx=out:csv&sheet=Balances"
+            bal_df = pd.read_csv(bal_csv_url)
+            
+            # Clean spaces from columns if any exist
+            bal_df.columns = bal_df.columns.str.strip()
+            user_bal = bal_df[bal_df['Name'].str.strip() == selected_name.strip()]
+            
+            if not user_bal.empty:
+                # Build metric cards matching your file properties
+                m1, m2, m3, m4 = st.columns(4)
+                with m1:
+                    st.metric("Annual Leave Quota", float(user_bal['Total Annual Leave Quota'].values[0]))
+                with m2:
+                    st.metric("Leave Taken This Month", float(user_bal['Leave taken this Month'].values[0]))
+                with m3:
+                    st.metric("Remaining Leave Balance", float(user_bal['Remaning Balance'].values[0]))
+                with m4:
+                    st.metric("Comp Off Balance", float(user_bal['Comp Off Balance'].values[0]))
+            else:
+                st.warning("⚠️ Profile matched, but no rows found for your name in the 'Balances' sheet tab yet.")
+        except Exception as e:
+            st.error("Cannot read metrics. Please ensure your Google Sheet tab is named exactly 'Balances' and headers match your image.")
+            
+        st.divider()
+        
+        # --- TAB MANAGEMENT ---
+        tab1, tab2 = st.tabs(["🆕 New Request Form", "🔍 Check Request Status History"])
         
         with tab1:
             with st.form("native_leave_form", clear_on_submit=True):
@@ -75,23 +103,20 @@ if role == "Employee Portal":
                             st.error("Database sync failed. Double check your web app permissions.")
         
         with tab2:
-            st.markdown(f"### 📋 Your Recent Requests ({selected_name})")
+            st.markdown(f"### 📋 Recent Request Queue ({selected_name})")
             try:
-                # Direct read from your live Google Sheet CSV export link
-                csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/export?format=csv"
-                df = pd.read_csv(csv_url)
+                req_csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/gviz/tq?tqx=out:csv&sheet=Requests"
+                df = pd.read_csv(req_csv_url)
                 
-                # Filter rows specifically for the logged-in user
-                user_df = df[df['Name'] == selected_name]
+                user_df = df[df['Name'].str.strip() == selected_name.strip()]
                 
                 if not user_df.empty:
-                    # Clean up data display columns
                     display_df = user_df[['ID', 'Date', 'Type', 'Status', 'Reason']]
                     st.dataframe(display_df, use_container_width=True, hide_index=True)
                 else:
                     st.info("You haven't submitted any requests yet.")
             except Exception as e:
-                st.warning("Unable to fetch status history at this moment. Don't worry, your submissions are saved securely!")
+                st.warning("Unable to fetch your status history ledger at this moment.")
 
 # ====================================================================
 # VIEW 2: MANAGER PORTAL
