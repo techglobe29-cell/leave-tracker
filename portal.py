@@ -26,8 +26,8 @@ if role == "Employee Portal":
     if selected_name != "-- Choose Name --":
         st.info("👉 Mapped Approver: Kulwant")
         
-        # REPLACE THIS LINK with your copied Google Form link!
-        form_url = "https://docs.google.com/forms/d/e/1FAIpQLScejm4oB_oR_your_form_link/viewform"
+        # ⚠️ IMPORTANT: Paste your real Google FORM link between these quotes!
+        form_url = "https://docs.google.com/forms/d/e/YOUR_FORM_ID_HERE/viewform"
         
         st.markdown(f"""
         <div style="background-color:#f0f2f6; padding:20px; border-radius:10px; text-align:center;">
@@ -53,9 +53,10 @@ elif role == "Manager Portal":
         st.markdown("### 📥 Live Database Queue")
         st.info("💡 To view incoming requests, open your linked Google Sheet tab directly.")
         
-        # YOUR LIVE GOOGLE SHEET LINK CONNECTED SUCCESSFULLY BELOW:
+        # SUCCESS: Your custom Google Sheet ledger link is now live
         sheet_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/edit?usp=sharing"
         st.markdown(f"[👉 Click Here to Open Live Google Sheet Ledger]({sheet_url})")
         
     elif password != "":
+        st.error("Invalid PIN.")
         st.error("Invalid PIN.")
