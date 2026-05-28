@@ -35,22 +35,17 @@ if role == "Employee Portal":
     if selected_name != "-- Choose Name --":
         emp_info = EMP_DETAILS[selected_name]
         
-        # 📊 LIVE METERING ACCORDING TO YOUR DATA COLS
         st.markdown(f"#### 📊 Personal Balance Statement ({selected_name})")
         try:
-            # Pulls from your 'Balances' tab
             bal_csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/gviz/tq?tqx=out:csv&sheet=Balances"
             bal_df = pd.read_csv(bal_csv_url)
             
-            # Clean spaces from columns and text inputs for bulletproof matching
             bal_df.columns = bal_df.columns.str.strip()
             bal_df['Name'] = bal_df['Name'].astype(str).str.strip().str.lower()
             
-            # Match using lowercase and stripped parameters
             user_bal = bal_df[bal_df['Name'] == selected_name.strip().lower()]
             
             if not user_bal.empty:
-                # Build metric cards matching your exact text list layout
                 m1, m2, m3, m4 = st.columns(4)
                 with m1:
                     st.metric("Leave Quota", float(user_bal['Leave Quota'].values[0]))
@@ -67,7 +62,6 @@ if role == "Employee Portal":
             
         st.divider()
         
-        # --- TAB MANAGEMENT ---
         tab1, tab2 = st.tabs(["🆕 New Request Form", "🔍 Check Request Status History"])
         
         with tab1:
@@ -98,4 +92,8 @@ if role == "Employee Portal":
                         macro_url = "https://script.google.com/macros/s/AKfycbzui_OKkbjFmEU-MyGCLStlOGmAGHP_HZyQQI16f3gwalnDYiTjiuUrlaRgjfxd6Rq8/exec"
                         
                         try:
-                            headers = {"Content-Type
+                            headers = {"Content-Type": "application/json"}
+                            response = requests.post(macro_url, json=form_data, headers=headers)
+                            st.success(f"🎉 Success! Request **{req_id}** submitted directly to Kulwant's ledger.")
+                            st.balloons()
+                        except Exception
