@@ -27,7 +27,7 @@ if role == "Employee Portal":
         st.info("👉 Mapped Approver: Kulwant")
         
         # 👇 ERASE THE TEXT BELOW AND PASTE YOUR COPIED LINK HERE 👇
-        form_url = "PASTE_YOUR_COPIED_FORM_LINK_HERE"
+        form_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/edit?usp=sharing"
         
         st.markdown(f"""
         <div style="background-color:#f0f2f6; padding:20px; border-radius:10px; text-align:center;">
