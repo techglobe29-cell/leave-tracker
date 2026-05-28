@@ -26,8 +26,8 @@ if role == "Employee Portal":
     if selected_name != "-- Choose Name --":
         st.info("👉 Mapped Approver: Kulwant")
         
-        # ⚠️ IMPORTANT: Paste your real Google FORM link between these quotes!
-        form_url = "https://docs.google.com/forms/d/e/YOUR_FORM_ID_HERE/viewform"
+        # 👇 ERASE THE TEXT BELOW AND PASTE YOUR COPIED LINK HERE 👇
+        form_url = "PASTE_YOUR_COPIED_FORM_LINK_HERE"
         
         st.markdown(f"""
         <div style="background-color:#f0f2f6; padding:20px; border-radius:10px; text-align:center;">
@@ -58,5 +58,4 @@ elif role == "Manager Portal":
         st.markdown(f"[👉 Click Here to Open Live Google Sheet Ledger]({sheet_url})")
         
     elif password != "":
-        st.error("Invalid PIN.")
         st.error("Invalid PIN.")
