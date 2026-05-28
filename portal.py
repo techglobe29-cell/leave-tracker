@@ -123,7 +123,7 @@ elif role == "Manager Portal":
     st.subheader("🔒 Manager Gateway")
     password = st.text_input("Enter Manager Security PIN:", type="password")
     
-    if password == "1234":
+    if password == "95656":
         st.success("Access Granted.")
         st.divider()
         
