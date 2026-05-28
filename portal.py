@@ -61,8 +61,8 @@ if role == "Employee Portal":
                         "Reason": reason
                     }
                     
-                    # ⚠️ PASTE YOUR COPIED WEB APP URL ENDPOINT BETWEEN THESE QUOTES:
-                    macro_url = "PASTE_YOUR_WEB_APP_URL_HERE"
+                    # ⚠️ PASTE YOUR NEW WEB APP URL LINK BETWEEN THESE QUOTES:
+                    macro_url = "PASTE_YOUR_NEW_WEB_APP_URL_HERE"
                     
                     try:
                         response = requests.post(macro_url, json=form_data)
