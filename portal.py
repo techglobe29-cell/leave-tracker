@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import requests
+import json
 
 st.set_page_config(page_title="Team Portal", layout="wide")
 
@@ -61,15 +62,21 @@ if role == "Employee Portal":
                         "Reason": reason
                     }
                     
-                    # ⚠️ PASTE YOUR NEW WEB APP URL LINK BETWEEN THESE QUOTES:
-                    macro_url = "PASTE_YOUR_NEW_WEB_APP_URL_HERE"
+                    # ⚠️ PASTE YOUR GOOGLE DEPLOYMENT LINK ENDING IN /exec HERE:
+                    macro_url = "PASTE_YOUR_WEB_APP_URL_HERE"
                     
                     try:
-                        response = requests.post(macro_url, json=form_data)
-                        st.success(f"🎉 Success! Request **{req_id}** submitted directly to your spreadsheet ledger.")
-                        st.balloons()
-                    except:
-                        st.error("Database sync failed. Double check your web app permissions.")
+                        # Headers tell Google explicitly to process this as JSON data
+                        headers = {"Content-Type": "application/json"}
+                        response = requests.post(macro_url, data=json.dumps(form_data), headers=headers)
+                        
+                        if response.status_code == 200:
+                            st.success(f"🎉 Success! Request **{req_id}** submitted directly to Kulwant's ledger.")
+                            st.balloons()
+                        else:
+                            st.error(f"Google Server responded with error code: {response.status_code}")
+                    except Exception as e:
+                        st.error(f"Network error: {str(e)}. Check your web app permissions.")
 
 # ====================================================================
 # VIEW 2: MANAGER PORTAL
