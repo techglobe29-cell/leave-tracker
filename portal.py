@@ -96,4 +96,42 @@ if role == "Employee Portal":
                             response = requests.post(macro_url, json=form_data, headers=headers)
                             st.success(f"🎉 Success! Request **{req_id}** submitted directly to Kulwant's ledger.")
                             st.balloons()
-                        except Exception
+                        except Exception as e:
+                            st.error("Database sync failed. Double check your web app permissions.")
+        
+        with tab2:
+            st.markdown(f"### 📋 Recent Request Queue ({selected_name})")
+            try:
+                req_csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/gviz/tq?tqx=out:csv&sheet=Requests"
+                df = pd.read_csv(req_csv_url)
+                
+                df.columns = df.columns.str.strip()
+                user_df = df[df['Name'].astype(str).str.strip().str.lower() == selected_name.strip().lower()]
+                
+                if not user_df.empty:
+                    display_df = user_df[['ID', 'Date', 'Type', 'Status', 'Reason']]
+                    st.dataframe(display_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("You haven't submitted any requests yet.")
+            except Exception as e:
+                st.warning("Unable to fetch your status history ledger at this moment.")
+
+# ====================================================================
+# VIEW 2: MANAGER PORTAL
+# ====================================================================
+elif role == "Manager Portal":
+    st.subheader("🔒 Manager Gateway")
+    password = st.text_input("Enter Manager Security PIN:", type="password")
+    
+    if password == "1234":
+        st.success("Access Granted.")
+        st.divider()
+        
+        st.markdown("### 📥 Live Database Queue")
+        st.info("💡 To view incoming requests, open your linked Google Sheet tab directly.")
+        
+        sheet_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/edit?usp=sharing"
+        st.markdown(f"[👉 Click Here to Open Live Google Sheet Ledger]({sheet_url})")
+        
+    elif password != "":
+        st.error("Invalid PIN.")
