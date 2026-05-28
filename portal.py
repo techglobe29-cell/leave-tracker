@@ -12,7 +12,7 @@ EMP_NAMES = [
 ]
 
 st.title("🏢 Enterprise Attendance Router")
-role = st.sidebar.radio("Select View:", ["Employee Portal", "Manager Dashboard"])
+role = st.sidebar.radio("Select View:", ["Employee Portal", "Manager Portal"])
 
 # ====================================================================
 # VIEW 1: EMPLOYEE PORTAL
@@ -32,7 +32,7 @@ if role == "Employee Portal":
         st.markdown(f"""
         <div style="background-color:#f0f2f6; padding:20px; border-radius:10px; text-align:center;">
             <h3>⚠️ Secure Database Link Generated</h3>
-            <p>To record your request permanently so Kulwant can see it instantly, click the button below:</p>
+            <p>To record your request permanently, click below:</p>
             <a href="{form_url}" target="_blank" style="background-color:#ff4b4b; color:white; padding:10px 20px; text-decoration:none; border-radius:5px; font-weight:bold;">
                 Open Official Leave Request Form 🚀
             </a>
@@ -40,9 +40,9 @@ if role == "Employee Portal":
         """, unsafe_allow_html=True)
 
 # ====================================================================
-# VIEW 2: MANAGER DASHBOARD
+# VIEW 2: MANAGER PORTAL
 # ====================================================================
-elif role == "Manager Dashboard":
+elif role == "Manager Portal":
     st.subheader("🔒 Manager Gateway")
     password = st.text_input("Enter Manager Security PIN:", type="password")
     
@@ -51,10 +51,10 @@ elif role == "Manager Dashboard":
         st.divider()
         
         st.markdown("### 📥 Live Database Queue")
-        st.info("💡 To view incoming requests, open your linked Google Sheet tab directly to manage entries instantly with 100% data security.")
+        st.info("💡 To view incoming requests, open your linked Google Sheet tab directly.")
         
-        # Optional: You can paste your linked Google Sheet link here for easy access
-        sheet_url = "https://docs.google.com/spreadsheets/d/your_sheet_id_here/edit"
+        # YOUR LIVE GOOGLE SHEET LINK CONNECTED SUCCESSFULLY BELOW:
+        sheet_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/edit?usp=sharing"
         st.markdown(f"[👉 Click Here to Open Live Google Sheet Ledger]({sheet_url})")
         
     elif password != "":
