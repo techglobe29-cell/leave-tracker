@@ -42,9 +42,12 @@ if role == "Employee Portal":
             bal_csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/gviz/tq?tqx=out:csv&sheet=Balances"
             bal_df = pd.read_csv(bal_csv_url)
             
-            # Clean spaces from columns if any exist
+            # Clean spaces from columns and text inputs for bulletproof matching
             bal_df.columns = bal_df.columns.str.strip()
-            user_bal = bal_df[bal_df['Name'].str.strip() == selected_name.strip()]
+            bal_df['Name'] = bal_df['Name'].astype(str).str.strip().str.lower()
+            
+            # Match using lowercase and stripped parameters
+            user_bal = bal_df[bal_df['Name'] == selected_name.strip().lower()]
             
             if not user_bal.empty:
                 # Build metric cards matching your file properties
@@ -58,9 +61,9 @@ if role == "Employee Portal":
                 with m4:
                     st.metric("Comp Off Balance", float(user_bal['Comp Off Balance'].values[0]))
             else:
-                st.warning("⚠️ Profile matched, but no rows found for your name in the 'Balances' sheet tab yet.")
+                st.warning(f"⚠️ Profile matched, but no rows found matching '{selected_name}' in the 'Balances' sheet tab yet.")
         except Exception as e:
-            st.error("Cannot read metrics. Please ensure your Google Sheet tab is named exactly 'Balances' and headers match your image.")
+            st.error("Cannot read metrics. Please ensure your Google Sheet tab is named exactly 'Balances' and headers match your structure.")
             
         st.divider()
         
@@ -108,7 +111,9 @@ if role == "Employee Portal":
                 req_csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/gviz/tq?tqx=out:csv&sheet=Requests"
                 df = pd.read_csv(req_csv_url)
                 
-                user_df = df[df['Name'].str.strip() == selected_name.strip()]
+                # Match using robust stripped formatting parameters
+                df.columns = df.columns.str.strip()
+                user_df = df[df['Name'].astype(str).str.strip().str.lower() == selected_name.strip().lower()]
                 
                 if not user_df.empty:
                     display_df = user_df[['ID', 'Date', 'Type', 'Status', 'Reason']]
