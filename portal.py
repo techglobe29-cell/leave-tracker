@@ -62,21 +62,17 @@ if role == "Employee Portal":
                         "Reason": reason
                     }
                     
-                    # ⚠️ PASTE YOUR GOOGLE DEPLOYMENT LINK ENDING IN /exec HERE:
-                    macro_url = "PASTE_YOUR_WEB_APP_URL_HERE"
+                    # Connected with your live deployment URL!
+                    macro_url = "https://script.google.com/macros/s/AKfycbzui_OKkbjFmEU-MyGCLStlOGmAGHP_HZyQQI16f3gwalnDYiTjiuUrlaRgjfxd6Rq8/exec"
                     
                     try:
-                        # Headers tell Google explicitly to process this as JSON data
                         headers = {"Content-Type": "application/json"}
                         response = requests.post(macro_url, data=json.dumps(form_data), headers=headers)
                         
-                        if response.status_code == 200:
-                            st.success(f"🎉 Success! Request **{req_id}** submitted directly to Kulwant's ledger.")
-                            st.balloons()
-                        else:
-                            st.error(f"Google Server responded with error code: {response.status_code}")
+                        st.success(f"🎉 Success! Request **{req_id}** submitted directly to Kulwant's ledger.")
+                        st.balloons()
                     except Exception as e:
-                        st.error(f"Network error: {str(e)}. Check your web app permissions.")
+                        st.error("Database sync failed. Double check your web app permissions.")
 
 # ====================================================================
 # VIEW 2: MANAGER PORTAL
