@@ -24,7 +24,7 @@ st.title("🏢 Enterprise Attendance Router")
 role = st.sidebar.radio("Select View:", ["Employee Portal", "Manager Portal"])
 
 # ====================================================================
-# VIEW 1: EMPLOYEE PORTAL
+# VIEW 1: EMPLOYEE PORTAL (SECURED WITH PIN)
 # ====================================================================
 if role == "Employee Portal":
     st.subheader("📝 Leave Portal Dashboard")
@@ -35,12 +35,13 @@ if role == "Employee Portal":
     if selected_name != "-- Choose Name --":
         emp_info = EMP_DETAILS[selected_name]
         
+        # 🔐 Password Box Entry Gate
         emp_pin = st.text_input(f"Enter Private PIN for {selected_name}:", type="password")
         
         if emp_pin == emp_info["PIN"]:
             st.success(f"🔓 Access Granted. Welcome back, {selected_name}!")
             
-            # --- LIVE METERING SECTION ---
+            # 📊 LIVE METERING SECTION
             st.markdown("#### 📊 Personal Balance Statement")
             try:
                 bal_csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/gviz/tq?tqx=out:csv&sheet=Balances"
@@ -73,40 +74,27 @@ if role == "Employee Portal":
             
             with tab1:
                 with st.form("native_leave_form", clear_on_submit=True):
-                    # 📅 From Date and To Date Row Placement
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        from_date = st.date_input("From Date:", datetime.today())
-                    with c2:
-                        to_date = st.date_input("To Date (Inclusive):", datetime.today())
-                    
+                    leave_date = st.date_input("Select Date:", datetime.today())
                     leave_type = st.selectbox("Leave Type:", ["Sick Leave", "Casual Leave", "Take Comp Off Leave", "Earn Overtime (Comp Off)"])
                     reason = st.text_input("Reason / Remarks:", placeholder="Type your reason here...")
                     
                     submit_btn = st.form_submit_button("Submit Request to Kulwant 🚀")
                     
                     if submit_btn:
-                        if to_date < from_date:
-                            st.error("❌ 'To Date' cannot be earlier than 'From Date'. Please recheck your dates.")
-                        elif not reason.strip():
-                            st.error("❌ Please provide a reason for your request.")
+                        if not reason.strip():
+                            st.error("Please provide a reason for your request.")
                         else:
-                            # 🔢 Calculate Total Days (Inclusive of start and end dates)
-                            total_days = (to_date - from_date).days + 1
                             req_id = f"REQ-{datetime.now().strftime('%M%S')}"
-                            
-                            # Create clean date display string (e.g., "2026-06-01 to 2026-06-03")
-                            date_string = f"{from_date.strftime('%Y-%m-%d')} to {to_date.strftime('%Y-%m-%d')}" if total_days > 1 else from_date.strftime('%Y-%m-%d')
                             
                             form_data = {
                                 "ID": req_id,
-                                "Date": date_string,
+                                "Date": leave_date.strftime("%Y-%m-%d"),
                                 "Code": emp_info["Code"],
                                 "Name": selected_name,
                                 "Type": leave_type,
                                 "Status": "Pending",
                                 "Approver": emp_info["Approver"],
-                                "Reason": f"({total_days} Days) {reason}" # Prepends total requested days inside your tracking ledger column
+                                "Reason": reason
                             }
                             
                             macro_url = "https://script.google.com/macros/s/AKfycbzui_OKkbjFmEU-MyGCLStlOGmAGHP_HZyQQI16f3gwalnDYiTjiuUrlaRgjfxd6Rq8/exec"
@@ -114,7 +102,7 @@ if role == "Employee Portal":
                             try:
                                 headers = {"Content-Type": "application/json"}
                                 response = requests.post(macro_url, json=form_data, headers=headers)
-                                st.success(f"🎉 Success! Request **{req_id}** for **{total_days} day(s)** submitted directly to Kulwant's ledger.")
+                                st.success(f"🎉 Success! Request **{req_id}** submitted directly to Kulwant's ledger.")
                                 st.balloons()
                             except Exception as e:
                                 st.error("Database sync failed. Double check your web app permissions.")
@@ -137,7 +125,7 @@ if role == "Employee Portal":
                     st.warning("Unable to fetch your status history ledger at this moment.")
                     
         elif emp_pin != "":
-            st.error("❌ Incorrect security PIN. Access denied.")
+            st.error("❌ Incorrect security PIN. Access denied. Please ask your administrator for assistance.")
 
 # ====================================================================
 # VIEW 2: MANAGER PORTAL
