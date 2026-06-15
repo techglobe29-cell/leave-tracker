@@ -5,7 +5,8 @@ import requests
 import json
 from streamlit_option_menu import option_menu
 
-st.set_page_config(page_title="Team Portal", layout="wide")
+# --- 1. PAGE & BRANDING CONFIGURATION ---
+st.set_page_config(page_title="Kyndryl Resources Leave Tracker", layout="wide")
 
 # --- HIDE NATIVE STREAMLIT HEADER & FOOTER ---
 hide_st_style = """
@@ -17,7 +18,7 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-# --- 1. Team Data Matrix with Individual PINs ---
+# --- 2. Team Data Matrix with Individual PINs ---
 EMP_DETAILS = {
     "Jagdish Gola": {"Code": "Emp01", "Dept": "DIT", "Approver": "Kulwant", "PIN": "2021"},
     "Mandeep Rawat": {"Code": "Emp02", "Dept": "DIT", "Approver": "Kulwant", "PIN": "2022"},
@@ -31,7 +32,8 @@ EMP_DETAILS = {
     "Kulwant": {"Code": "Emp10", "Dept": "DIT", "Approver": "Kulwant", "PIN": "2030"}
 }
 
-st.title("🏢 Enterprise Attendance Router")
+# BRAND NEW APPMATION NAME UPDATED HERE
+st.title("🏢 Kyndryl Resources Leave Tracker")
 
 # --- CUSTOM SIDEBAR MENU ---
 with st.sidebar:
@@ -61,7 +63,7 @@ if role == "Employee Portal":
         if emp_pin == emp_info["PIN"]:
             st.success(f"🔓 Access Granted. Welcome back, {selected_name}!")
             
-            # 📊 LIVE METERING SECTION (NOW IN A BORDERED CARD)
+            # 📊 LIVE METERING SECTION
             with st.container(border=True):
                 st.markdown("#### 📊 Personal Balance Statement")
                 try:
@@ -139,7 +141,6 @@ if role == "Employee Portal":
                     
                     if not user_df.empty:
                         display_df = user_df[['ID', 'Date', 'Type', 'Status', 'Reason']]
-                        # WRAPPED TABLE IN EXPANDER
                         with st.expander("🔍 Click to view your past requests", expanded=True):
                             st.dataframe(display_df, use_container_width=True, hide_index=True)
                     else:
@@ -157,7 +158,7 @@ elif role == "Manager Portal":
     st.subheader("🔒 Manager Gateway")
     password = st.text_input("Enter Manager Security PIN:", type="password")
     
-    # NEW MANAGER PIN SET TO 5656
+    # 🔐 MANAGER PIN REMAINS AT 5656
     if password == "5656":
         st.success("Access Granted.")
         st.divider()
