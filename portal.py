@@ -82,11 +82,11 @@ if role == "Employee Portal":
                     if not user_bal.empty:
                         m1, m2, m3, m4 = st.columns(4)
                         with m1:
-                            st.metric("Leave Quota", float(user_bal['Leave Quota'].values[0]))
+                            st.metric("EL Quota", float(user_bal['Leave Quota'].values[0]))
                         with m2:
-                            st.metric("Leave Taken", float(user_bal['Leave Taken'].values[0]))
+                            st.metric("EL Taken", float(user_bal['Leave Taken'].values[0]))
                         with m3:
-                            st.metric("Leave Balance", float(user_bal['Leave Balance'].values[0]))
+                            st.metric("EL Balance", float(user_bal['Leave Balance'].values[0]))
                         with m4:
                             st.metric("Comp Off Balance", float(user_bal['Comp Off Balance'].values[0]))
                     else:
@@ -101,9 +101,10 @@ if role == "Employee Portal":
             with tab1:
                 with st.form("native_leave_form", clear_on_submit=True):
                     leave_date = st.date_input("Select Date:", datetime.today())
-                    leave_type = st.selectbox("Leave Type:", ["Sick Leave", "Casual Leave", "Take Comp Off Leave", "Earn Overtime (Comp Off)"])
                     
-                    # ENHANCEMENT: Conditional value mapping for Earned Overtime Requests
+                    # STREAMLINED OPTIONS: Only EL and Comp Off actions are available now
+                    leave_type = st.selectbox("Leave Type:", ["Earned Leave (EL)", "Take Comp Off Leave", "Earn Overtime (Comp Off)"])
+                    
                     ot_credit = 0.0
                     if leave_type == "Earn Overtime (Comp Off)":
                         ot_credit = st.selectbox("Select Comp Off Units to Claim:", [0.5, 1.0, 1.5, 2.0], help="Specify total shift balance multiplier credit requested.")
@@ -139,7 +140,6 @@ if role == "Employee Portal":
                                 st.error("Database sync failed. Double check your web app permissions.")
             
             with tab2:
-                # ENHANCEMENT: Processing State Guide Key
                 st.markdown("### 📋 Recent Request Queue")
                 c1, c2, c3 = st.columns(3)
                 c1.markdown("🟠 **Pending:** Sent to RM")
@@ -175,7 +175,6 @@ elif role == "Manager Portal":
         st.success("Access Granted.")
         st.divider()
         
-        # ENHANCEMENT: Structured Manager Workspace Card Design
         with st.container(border=True):
             st.markdown("### 🛠️ Administrative Operations Control Console")
             st.markdown("Use this secure panel to audit logs, approve changes, or modify structural quotas directly via the core sheet.")
