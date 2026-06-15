@@ -15,7 +15,7 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-# 1. Initialize Database with exact team data
+# 1. Initialize Database with exact team data (Cleaned for EL and Comp Off)
 if 'employee_db' not in st.session_state:
     st.session_state.employee_db = pd.DataFrame({
         "Emp Code": ["Emp01", "Emp02", "Emp03", "Emp04", "Emp05", "Emp06", "Emp07", "Emp08", "Emp09", "Emp10"],
@@ -25,8 +25,8 @@ if 'employee_db' not in st.session_state:
             "Ravi Shanker Rai", "Kulwant"
         ],
         "Department": ["DIT", "DIT", "DIT", "DIT", "DIT", "DIT", "DIT", "Maxworth", "Orbit", "DIT"],
-        "Total Annual Leave Quota": [8.0, 4.0, 7.0, 2.0, 3.0, 0.0, 3.0, 0.0, 0.0, 0.0],
-        "Leaves Taken This Month": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "Total Annual EL Quota": [8.0, 4.0, 7.0, 2.0, 3.0, 0.0, 3.0, 0.0, 0.0, 0.0],
+        "EL Taken This Month": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         "Comp Off Balance": [0.0, 0.0, 0.0, 0.0, 0.0, 5.5, 0.0, 0.0, 0.0, 0.0],
         "Approver Name": ["Kulwant"] * 10
     })
@@ -34,7 +34,7 @@ if 'employee_db' not in st.session_state:
 if 'leave_history' not in st.session_state:
     st.session_state.leave_history = pd.DataFrame([], columns=["Date", "Emp Code", "Name", "Type", "Status"])
 
-# 2. Monthly Auto-Credit Feature (1.5 Leaves Added)
+# 2. Monthly Auto-Credit Feature (1.5 EL Added)
 if 'last_month' not in st.session_state:
     st.session_state.last_month = datetime.today().strftime("%Y-%m")
 
@@ -43,12 +43,12 @@ cur_month = datetime.today().strftime("%Y-%m")
 if cur_month != st.session_state.last_month:
     db = st.session_state.employee_db
     for idx, row in db.iterrows():
-        st.session_state.employee_db.at[idx, "Total Annual Leave Quota"] = row["Total Annual Leave Quota"] + 1.5
-        st.session_state.employee_db.at[idx, "Leaves Taken This Month"] = 0.0
+        st.session_state.employee_db.at[idx, "Total Annual EL Quota"] = row["Total Annual EL Quota"] + 1.5
+        st.session_state.employee_db.at[idx, "EL Taken This Month"] = 0.0
     st.session_state.last_month = cur_month
 
 st.title("📊 Kyndryl Resources Leave Tracker")
-st.markdown("Easily monitor monthly attendance, live leave balances, and Comp Off metrics.")
+st.markdown("Easily monitor monthly attendance, live EL balances, and Comp Off metrics.")
 st.divider()
 
 with st.sidebar:
@@ -63,7 +63,7 @@ with st.sidebar:
 if action == "View Dashboard":
     st.subheader("🗓️ Monthly Summary Dashboard")
     df = st.session_state.employee_db.copy()
-    df["Remaining Balance"] = df["Total Annual Leave Quota"] - df["Leaves Taken This Month"]
+    df["Remaining EL Balance"] = df["Total Annual EL Quota"] - df["EL Taken This Month"]
     
     with st.container(border=True):
         st.markdown("#### 📈 Operational Metrics")
@@ -80,13 +80,13 @@ if action == "View Dashboard":
         st.dataframe(st.session_state.leave_history, use_container_width=True)
 
 elif action == "Log Leave / Attendance":
-    st.subheader("📝 Log Leave, Comp Off, or Attendance")
+    st.subheader("📝 Log EL or Comp Off Usage")
     df = st.session_state.employee_db
     
     with st.form("log_form", clear_on_submit=True):
         sel_name = st.selectbox("Select Employee", df["Name"].tolist())
         d_sel = st.date_input("Date", datetime.today())
-        status = st.selectbox("Type", ["Present", "Sick Leave", "Casual Leave", "Take Comp Off Leave", "Unpaid Leave"])
+        status = st.selectbox("Type", ["Earned Leave (EL)", "Take Comp Off Leave"])
         submit_btn = st.form_submit_button("Submit Record")
         
         if submit_btn:
@@ -101,11 +101,9 @@ elif action == "Log Leave / Attendance":
                         else:
                             st.error("Insufficient Comp Off Balance.")
                             st.stop()
-                    elif "Leave" in status:
-                        st.session_state.employee_db.at[idx, "Leaves Taken This Month"] += 1.0
-                        st.toast(f"Logged {status} for {sel_name}!", icon="📝")
-                    else:
-                        st.toast(f"Logged {status} for {sel_name}!", icon="✅")
+                    elif status == "Earned Leave (EL)":
+                        st.session_state.employee_db.at[idx, "EL Taken This Month"] += 1.0
+                        st.toast(f"Logged EL for {sel_name}!", icon="📝")
                         
             new_log = pd.DataFrame([{"Date": d_sel.strftime("%Y-%m-%d"), "Emp Code": e_code, "Name": sel_name, "Type": status, "Status": "Approved"}])
             st.session_state.leave_history = pd.concat([st.session_state.leave_history, new_log], ignore_index=True)
@@ -138,11 +136,11 @@ elif action == "Add New Employee":
         n_id = st.text_input("Emp Code:")
         n_name = st.text_input("Name:")
         dept = st.text_input("Dept:")
-        quota = st.number_input("Quota:", min_value=0, value=5)
+        quota = st.number_input("EL Quota:", min_value=0, value=5)
         submit_emp = st.form_submit_button("Save")
         
         if submit_emp:
             if n_id and n_name:
-                new_row = pd.DataFrame([{"Emp Code": n_id, "Name": n_name, "Department": dept, "Total Annual Leave Quota": quota, "Leaves Taken This Month": 0.0, "Comp Off Balance": 0.0, "Approver Name": "Kulwant"}])
+                new_row = pd.DataFrame([{"Emp Code": n_id, "Name": n_name, "Department": dept, "Total Annual EL Quota": quota, "EL Taken This Month": 0.0, "Comp Off Balance": 0.0, "Approver Name": "Kulwant"}])
                 st.session_state.employee_db = pd.concat([st.session_state.employee_db, new_row], ignore_index=True)
                 st.toast("New profile added successfully!", icon="👤")
