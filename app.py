@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 from streamlit_option_menu import option_menu
 
-st.set_page_config(page_title="Team Dashboard", layout="wide")
+st.set_page_config(page_title="Kyndryl Resources Leave Tracker", layout="wide")
 
 # --- HIDE NATIVE STREAMLIT HEADER & FOOTER ---
 hide_st_style = """
@@ -15,35 +15,24 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-# 1. Initialize Database with your exact team data from the image
+# 1. Initialize Database with exact team data
 if 'employee_db' not in st.session_state:
     st.session_state.employee_db = pd.DataFrame({
-        "Emp Code": [
-            "Emp01", "Emp02", "Emp03", "Emp04", "Emp05", 
-            "Emp06", "Emp07", "Emp08", "Emp09", "Emp10"
-        ],
+        "Emp Code": ["Emp01", "Emp02", "Emp03", "Emp04", "Emp05", "Emp06", "Emp07", "Emp08", "Emp09", "Emp10"],
         "Name": [
-            "Jagdish Gola", "Mandeep Rawat", "Jitendra Singh", 
-            "Shakti Shukla", "Sanket Moharana", "Vijay Sharma", 
-            "Nitin Kumar", "Dharambir", "Ravi Shanker Rai", "Kulwant"
+            "Jagdish Gola", "Mandeep Rawat", "Jitendra Singh", "Shakti Shukla", 
+            "Sanket Moharana", "Vijay Sharma", "Nitin Kumar", "Dharambir", 
+            "Ravi Shanker Rai", "Kulwant"
         ],
-        "Department": [
-            "DIT", "DIT", "DIT", "DIT", "DIT", 
-            "DIT", "DIT", "Maxworth", "Orbit", "DIT"
-        ],
+        "Department": ["DIT", "DIT", "DIT", "DIT", "DIT", "DIT", "DIT", "Maxworth", "Orbit", "DIT"],
         "Total Annual Leave Quota": [8.0, 4.0, 7.0, 2.0, 3.0, 0.0, 3.0, 0.0, 0.0, 0.0],
         "Leaves Taken This Month": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         "Comp Off Balance": [0.0, 0.0, 0.0, 0.0, 0.0, 5.5, 0.0, 0.0, 0.0, 0.0],
-        "Approver Name": [
-            "Kulwant", "Kulwant", "Kulwant", "Kulwant", "Kulwant", 
-            "Kulwant", "Kulwant", "Kulwant", "Kulwant", "Kulwant"
-        ]
+        "Approver Name": ["Kulwant"] * 10
     })
 
 if 'leave_history' not in st.session_state:
-    st.session_state.leave_history = pd.DataFrame(
-        [], columns=["Date", "Emp Code", "Name", "Type", "Status"]
-    )
+    st.session_state.leave_history = pd.DataFrame([], columns=["Date", "Emp Code", "Name", "Type", "Status"])
 
 # 2. Monthly Auto-Credit Feature (1.5 Leaves Added)
 if 'last_month' not in st.session_state:
@@ -58,12 +47,10 @@ if cur_month != st.session_state.last_month:
         st.session_state.employee_db.at[idx, "Leaves Taken This Month"] = 0.0
     st.session_state.last_month = cur_month
 
-# --- Layout Configuration ---
-st.title("📊 Team Attendance & Leave Tracker")
+st.title("📊 Kyndryl Resources Leave Tracker")
 st.markdown("Easily monitor monthly attendance, live leave balances, and Comp Off metrics.")
 st.divider()
 
-# Left Hand Navigation Options with GUI upgrade
 with st.sidebar:
     action = option_menu(
         menu_title="Actions Panel",
@@ -73,14 +60,11 @@ with st.sidebar:
         default_index=0
     )
 
-# --- FEATURE 1: VIEW DASHBOARD ---
 if action == "View Dashboard":
     st.subheader("🗓️ Monthly Summary Dashboard")
-    
     df = st.session_state.employee_db.copy()
     df["Remaining Balance"] = df["Total Annual Leave Quota"] - df["Leaves Taken This Month"]
     
-    # Bordered Card container for core statistics
     with st.container(border=True):
         st.markdown("#### 📈 Operational Metrics")
         col1, col2, col3 = st.columns(3)
@@ -95,7 +79,6 @@ if action == "View Dashboard":
         st.markdown("### Recent Activity Logs")
         st.dataframe(st.session_state.leave_history, use_container_width=True)
 
-# --- FEATURE 2: LOG LEAVE / ATTENDANCE ---
 elif action == "Log Leave / Attendance":
     st.subheader("📝 Log Leave, Comp Off, or Attendance")
     df = st.session_state.employee_db
@@ -111,7 +94,6 @@ elif action == "Log Leave / Attendance":
             for idx, row in st.session_state.employee_db.iterrows():
                 if row["Name"] == sel_name:
                     e_code = row["Emp Code"]
-                    
                     if status == "Take Comp Off Leave":
                         if row["Comp Off Balance"] >= 1.0:
                             st.session_state.employee_db.at[idx, "Comp Off Balance"] -= 1.0
@@ -125,13 +107,9 @@ elif action == "Log Leave / Attendance":
                     else:
                         st.toast(f"Logged {status} for {sel_name}!", icon="✅")
                         
-            new_log = pd.DataFrame([{
-                "Date": d_sel.strftime("%Y-%m-%d"), "Emp Code": e_code,
-                "Name": sel_name, "Type": status, "Status": "Approved"
-            }])
+            new_log = pd.DataFrame([{"Date": d_sel.strftime("%Y-%m-%d"), "Emp Code": e_code, "Name": sel_name, "Type": status, "Status": "Approved"}])
             st.session_state.leave_history = pd.concat([st.session_state.leave_history, new_log], ignore_index=True)
 
-# --- FEATURE 3: EARN OVERTIME (COMP OFF) ---
 elif action == "Earn Overtime (Comp Off)":
     st.subheader("⏳ Log Overtime / Extra Shift to Earn Comp Off")
     df = st.session_state.employee_db
@@ -150,14 +128,10 @@ elif action == "Earn Overtime (Comp Off)":
                     e_code = row["Emp Code"]
                     st.session_state.employee_db.at[idx, "Comp Off Balance"] += days_earned
                     
-            new_log = pd.DataFrame([{
-                "Date": d_worked.strftime("%Y-%m-%d"), "Emp Code": e_code,
-                "Name": sel_name, "Type": f"Earned Comp Off (+{days_earned})", "Status": notes
-            }])
+            new_log = pd.DataFrame([{"Date": d_worked.strftime("%Y-%m-%d"), "Emp Code": e_code, "Name": sel_name, "Type": f"Earned Comp Off (+{days_earned})", "Status": notes}])
             st.session_state.leave_history = pd.concat([st.session_state.leave_history, new_log], ignore_index=True)
             st.toast(f"Credited {days_earned} Comp Off day(s) to {sel_name}!", icon="➕")
 
-# --- FEATURE 4: ADD NEW EMPLOYEE ---
 elif action == "Add New Employee":
     st.subheader("➕ Onboard New Team Member")
     with st.form("add_emp_form", clear_on_submit=True):
