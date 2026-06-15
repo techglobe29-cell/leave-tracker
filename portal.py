@@ -32,7 +32,6 @@ EMP_DETAILS = {
     "Kulwant": {"Code": "Emp10", "Dept": "DIT", "Approver": "Kulwant", "PIN": "2030"}
 }
 
-# BRAND NEW APPMATION NAME UPDATED HERE
 st.title("🏢 Kyndryl Resources Leave Tracker")
 
 # --- CUSTOM SIDEBAR MENU ---
@@ -62,6 +61,14 @@ if role == "Employee Portal":
         
         if emp_pin == emp_info["PIN"]:
             st.success(f"🔓 Access Granted. Welcome back, {selected_name}!")
+            
+            # 🚨 ADDED POLICY WARNING CALLOUT HERE 🚨
+            st.warning(
+                "⚠️ **Important Policy Notice:** If you take a leave without submitting a formal request here, "
+                "your leave balance will be manually updated by the Reporting Manager (RM). Please ensure all "
+                "requests are submitted on time to prevent discrepancies in your ledger.",
+                icon="⚠️"
+            )
             
             # 📊 LIVE METERING SECTION
             with st.container(border=True):
@@ -158,7 +165,6 @@ elif role == "Manager Portal":
     st.subheader("🔒 Manager Gateway")
     password = st.text_input("Enter Manager Security PIN:", type="password")
     
-    # 🔐 MANAGER PIN REMAINS AT 5656
     if password == "5656":
         st.success("Access Granted.")
         st.divider()
