@@ -1,8 +1,19 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+from streamlit_option_menu import option_menu
 
 st.set_page_config(page_title="Team Dashboard", layout="wide")
+
+# --- HIDE NATIVE STREAMLIT HEADER & FOOTER ---
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
 
 # 1. Initialize Database with your exact team data from the image
 if 'employee_db' not in st.session_state:
@@ -52,12 +63,15 @@ st.title("📊 Team Attendance & Leave Tracker")
 st.markdown("Easily monitor monthly attendance, live leave balances, and Comp Off metrics.")
 st.divider()
 
-# Left Hand Navigation Options
-st.sidebar.header("🕹️ Actions Panel")
-action = st.sidebar.selectbox(
-    "Choose Action", 
-    ["View Dashboard", "Log Leave / Attendance", "Earn Overtime (Comp Off)", "Add New Employee"]
-)
+# Left Hand Navigation Options with GUI upgrade
+with st.sidebar:
+    action = option_menu(
+        menu_title="Actions Panel",
+        options=["View Dashboard", "Log Leave / Attendance", "Earn Overtime (Comp Off)", "Add New Employee"],
+        icons=["speedometer2", "pencil-square", "hourglass-split", "person-plus"],
+        menu_icon="sliders",
+        default_index=0
+    )
 
 # --- FEATURE 1: VIEW DASHBOARD ---
 if action == "View Dashboard":
@@ -66,10 +80,13 @@ if action == "View Dashboard":
     df = st.session_state.employee_db.copy()
     df["Remaining Balance"] = df["Total Annual Leave Quota"] - df["Leaves Taken This Month"]
     
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Employees", len(df))
-    col2.metric("Total Active Comp Off Days", int(df['Comp Off Balance'].sum()))
-    col3.metric("Current Month Logs Checked", len(st.session_state.leave_history))
+    # Bordered Card container for core statistics
+    with st.container(border=True):
+        st.markdown("#### 📈 Operational Metrics")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Employees", len(df))
+        col2.metric("Total Active Comp Off Days", int(df['Comp Off Balance'].sum()))
+        col3.metric("Current Month Logs Checked", len(st.session_state.leave_history))
     
     st.markdown("### Employee Master Sheet")
     st.dataframe(df, use_container_width=True)
@@ -98,15 +115,15 @@ elif action == "Log Leave / Attendance":
                     if status == "Take Comp Off Leave":
                         if row["Comp Off Balance"] >= 1.0:
                             st.session_state.employee_db.at[idx, "Comp Off Balance"] -= 1.0
-                            st.success(f"Deducted 1 Comp Off from {sel_name}!")
+                            st.toast(f"Deducted 1 Comp Off from {sel_name}!", icon="➖")
                         else:
                             st.error("Insufficient Comp Off Balance.")
                             st.stop()
                     elif "Leave" in status:
                         st.session_state.employee_db.at[idx, "Leaves Taken This Month"] += 1.0
-                        st.success(f"Logged {status} for {sel_name}!")
+                        st.toast(f"Logged {status} for {sel_name}!", icon="📝")
                     else:
-                        st.success(f"Logged {status} for {sel_name}!")
+                        st.toast(f"Logged {status} for {sel_name}!", icon="✅")
                         
             new_log = pd.DataFrame([{
                 "Date": d_sel.strftime("%Y-%m-%d"), "Emp Code": e_code,
@@ -138,7 +155,7 @@ elif action == "Earn Overtime (Comp Off)":
                 "Name": sel_name, "Type": f"Earned Comp Off (+{days_earned})", "Status": notes
             }])
             st.session_state.leave_history = pd.concat([st.session_state.leave_history, new_log], ignore_index=True)
-            st.success(f"Credited {days_earned} Comp Off day(s) to {sel_name}!")
+            st.toast(f"Credited {days_earned} Comp Off day(s) to {sel_name}!", icon="➕")
 
 # --- FEATURE 4: ADD NEW EMPLOYEE ---
 elif action == "Add New Employee":
@@ -154,4 +171,4 @@ elif action == "Add New Employee":
             if n_id and n_name:
                 new_row = pd.DataFrame([{"Emp Code": n_id, "Name": n_name, "Department": dept, "Total Annual Leave Quota": quota, "Leaves Taken This Month": 0.0, "Comp Off Balance": 0.0, "Approver Name": "Kulwant"}])
                 st.session_state.employee_db = pd.concat([st.session_state.employee_db, new_row], ignore_index=True)
-                st.success("Done!")
+                st.toast("New profile added successfully!", icon="👤")
