@@ -3,8 +3,19 @@ import pandas as pd
 from datetime import datetime
 import requests
 import json
+from streamlit_option_menu import option_menu
 
 st.set_page_config(page_title="Team Portal", layout="wide")
+
+# --- HIDE NATIVE STREAMLIT HEADER & FOOTER ---
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
 
 # --- 1. Team Data Matrix with Individual PINs ---
 EMP_DETAILS = {
@@ -21,7 +32,16 @@ EMP_DETAILS = {
 }
 
 st.title("🏢 Enterprise Attendance Router")
-role = st.sidebar.radio("Select View:", ["Employee Portal", "Manager Portal"])
+
+# --- CUSTOM SIDEBAR MENU ---
+with st.sidebar:
+    role = option_menu(
+        menu_title="Main Menu", 
+        options=["Employee Portal", "Manager Portal"], 
+        icons=["person-badge", "shield-lock"], 
+        menu_icon="cast", 
+        default_index=0
+    )
 
 # ====================================================================
 # VIEW 1: EMPLOYEE PORTAL (SECURED WITH PIN)
@@ -41,31 +61,32 @@ if role == "Employee Portal":
         if emp_pin == emp_info["PIN"]:
             st.success(f"🔓 Access Granted. Welcome back, {selected_name}!")
             
-            # 📊 LIVE METERING SECTION
-            st.markdown("#### 📊 Personal Balance Statement")
-            try:
-                bal_csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/gviz/tq?tqx=out:csv&sheet=Balances"
-                bal_df = pd.read_csv(bal_csv_url)
-                
-                bal_df.columns = bal_df.columns.str.strip()
-                bal_df['Name'] = bal_df['Name'].astype(str).str.strip().str.lower()
-                
-                user_bal = bal_df[bal_df['Name'] == selected_name.strip().lower()]
-                
-                if not user_bal.empty:
-                    m1, m2, m3, m4 = st.columns(4)
-                    with m1:
-                        st.metric("Leave Quota", float(user_bal['Leave Quota'].values[0]))
-                    with m2:
-                        st.metric("Leave Taken", float(user_bal['Leave Taken'].values[0]))
-                    with m3:
-                        st.metric("Leave Balance", float(user_bal['Leave Balance'].values[0]))
-                    with m4:
-                        st.metric("Comp Off Balance", float(user_bal['Comp Off Balance'].values[0]))
-                else:
-                    st.warning(f"⚠️ Profile matched, but no balance records found in the spreadsheet tab yet.")
-            except Exception as e:
-                st.error("Cannot read metrics from the server database.")
+            # 📊 LIVE METERING SECTION (NOW IN A BORDERED CARD)
+            with st.container(border=True):
+                st.markdown("#### 📊 Personal Balance Statement")
+                try:
+                    bal_csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/gviz/tq?tqx=out:csv&sheet=Balances"
+                    bal_df = pd.read_csv(bal_csv_url)
+                    
+                    bal_df.columns = bal_df.columns.str.strip()
+                    bal_df['Name'] = bal_df['Name'].astype(str).str.strip().str.lower()
+                    
+                    user_bal = bal_df[bal_df['Name'] == selected_name.strip().lower()]
+                    
+                    if not user_bal.empty:
+                        m1, m2, m3, m4 = st.columns(4)
+                        with m1:
+                            st.metric("Leave Quota", float(user_bal['Leave Quota'].values[0]))
+                        with m2:
+                            st.metric("Leave Taken", float(user_bal['Leave Taken'].values[0]))
+                        with m3:
+                            st.metric("Leave Balance", float(user_bal['Leave Balance'].values[0]))
+                        with m4:
+                            st.metric("Comp Off Balance", float(user_bal['Comp Off Balance'].values[0]))
+                    else:
+                        st.warning(f"⚠️ Profile matched, but no balance records found in the spreadsheet tab yet.")
+                except Exception as e:
+                    st.error("Cannot read metrics from the server database.")
                 
             st.divider()
             
@@ -102,7 +123,7 @@ if role == "Employee Portal":
                             try:
                                 headers = {"Content-Type": "application/json"}
                                 response = requests.post(macro_url, json=form_data, headers=headers)
-                                st.success(f"🎉 Success! Request **{req_id}** submitted directly to Kulwant's ledger.")
+                                st.toast(f"🎉 Success! Request **{req_id}** submitted directly to Kulwant's ledger.", icon="✅")
                                 st.balloons()
                             except Exception as e:
                                 st.error("Database sync failed. Double check your web app permissions.")
@@ -118,7 +139,9 @@ if role == "Employee Portal":
                     
                     if not user_df.empty:
                         display_df = user_df[['ID', 'Date', 'Type', 'Status', 'Reason']]
-                        st.dataframe(display_df, use_container_width=True, hide_index=True)
+                        # WRAPPED TABLE IN EXPANDER
+                        with st.expander("🔍 Click to view your past requests", expanded=True):
+                            st.dataframe(display_df, use_container_width=True, hide_index=True)
                     else:
                         st.info("You haven't submitted any requests yet.")
                 except Exception as e:
@@ -134,6 +157,7 @@ elif role == "Manager Portal":
     st.subheader("🔒 Manager Gateway")
     password = st.text_input("Enter Manager Security PIN:", type="password")
     
+    # NEW MANAGER PIN SET TO 5656
     if password == "5656":
         st.success("Access Granted.")
         st.divider()
