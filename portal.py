@@ -55,14 +55,12 @@ if role == "Employee Portal":
     
     if selected_name != "-- Choose Name --":
         emp_info = EMP_DETAILS[selected_name]
-        
-        # 🔐 Password Box Entry Gate
         emp_pin = st.text_input(f"Enter Private PIN for {selected_name}:", type="password")
         
         if emp_pin == emp_info["PIN"]:
             st.success(f"🔓 Access Granted. Welcome back, {selected_name}!")
             
-            # 🚨 ADDED POLICY WARNING CALLOUT HERE 🚨
+            # Policy Warning Callout Block
             st.warning(
                 "⚠️ **Important Policy Notice:** If you take a leave without submitting a formal request here, "
                 "your leave balance will be manually updated by the Reporting Manager (RM). Please ensure all "
@@ -76,7 +74,6 @@ if role == "Employee Portal":
                 try:
                     bal_csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/gviz/tq?tqx=out:csv&sheet=Balances"
                     bal_df = pd.read_csv(bal_csv_url)
-                    
                     bal_df.columns = bal_df.columns.str.strip()
                     bal_df['Name'] = bal_df['Name'].astype(str).str.strip().str.lower()
                     
@@ -99,15 +96,19 @@ if role == "Employee Portal":
                 
             st.divider()
             
-            # --- FORM AND HISTORY INTERFACE ---
             tab1, tab2 = st.tabs(["🆕 New Request Form", "🔍 Check Request Status History"])
             
             with tab1:
                 with st.form("native_leave_form", clear_on_submit=True):
                     leave_date = st.date_input("Select Date:", datetime.today())
                     leave_type = st.selectbox("Leave Type:", ["Sick Leave", "Casual Leave", "Take Comp Off Leave", "Earn Overtime (Comp Off)"])
-                    reason = st.text_input("Reason / Remarks:", placeholder="Type your reason here...")
                     
+                    # ENHANCEMENT: Conditional value mapping for Earned Overtime Requests
+                    ot_credit = 0.0
+                    if leave_type == "Earn Overtime (Comp Off)":
+                        ot_credit = st.selectbox("Select Comp Off Units to Claim:", [0.5, 1.0, 1.5, 2.0], help="Specify total shift balance multiplier credit requested.")
+                    
+                    reason = st.text_input("Reason / Remarks:", placeholder="Type your reason here...")
                     submit_btn = st.form_submit_button("Submit Request to Kulwant 🚀")
                     
                     if submit_btn:
@@ -115,20 +116,20 @@ if role == "Employee Portal":
                             st.error("Please provide a reason for your request.")
                         else:
                             req_id = f"REQ-{datetime.now().strftime('%M%S')}"
+                            final_type = f"Earned Comp Off (+{ot_credit})" if leave_type == "Earn Overtime (Comp Off)" else leave_type
                             
                             form_data = {
                                 "ID": req_id,
                                 "Date": leave_date.strftime("%Y-%m-%d"),
                                 "Code": emp_info["Code"],
                                 "Name": selected_name,
-                                "Type": leave_type,
+                                "Type": final_type,
                                 "Status": "Pending",
                                 "Approver": emp_info["Approver"],
                                 "Reason": reason
                             }
                             
                             macro_url = "https://script.google.com/macros/s/AKfycbzui_OKkbjFmEU-MyGCLStlOGmAGHP_HZyQQI16f3gwalnDYiTjiuUrlaRgjfxd6Rq8/exec"
-                            
                             try:
                                 headers = {"Content-Type": "application/json"}
                                 response = requests.post(macro_url, json=form_data, headers=headers)
@@ -138,17 +139,22 @@ if role == "Employee Portal":
                                 st.error("Database sync failed. Double check your web app permissions.")
             
             with tab2:
+                # ENHANCEMENT: Processing State Guide Key
                 st.markdown("### 📋 Recent Request Queue")
+                c1, c2, c3 = st.columns(3)
+                c1.markdown("🟠 **Pending:** Sent to RM")
+                c2.markdown("🟢 **Approved:** Deducted/Credited")
+                c3.markdown("🔴 **Rejected:** Contact Admin")
+                
                 try:
                     req_csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/gviz/tq?tqx=out:csv&sheet=Requests"
                     df = pd.read_csv(req_csv_url)
-                    
                     df.columns = df.columns.str.strip()
                     user_df = df[df['Name'].astype(str).str.strip().str.lower() == selected_name.strip().lower()]
                     
                     if not user_df.empty:
                         display_df = user_df[['ID', 'Date', 'Type', 'Status', 'Reason']]
-                        with st.expander("🔍 Click to view your past requests", expanded=True):
+                        with st.expander("🔍 Click to view your complete transactional history log", expanded=True):
                             st.dataframe(display_df, use_container_width=True, hide_index=True)
                     else:
                         st.info("You haven't submitted any requests yet.")
@@ -169,11 +175,12 @@ elif role == "Manager Portal":
         st.success("Access Granted.")
         st.divider()
         
-        st.markdown("### 📥 Live Database Queue")
-        st.info("💡 To view incoming requests, open your linked Google Sheet tab directly.")
-        
-        sheet_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/edit?usp=sharing"
-        st.markdown(f"[👉 Click Here to Open Live Google Sheet Ledger]({sheet_url})")
+        # ENHANCEMENT: Structured Manager Workspace Card Design
+        with st.container(border=True):
+            st.markdown("### 🛠️ Administrative Operations Control Console")
+            st.markdown("Use this secure panel to audit logs, approve changes, or modify structural quotas directly via the core sheet.")
+            sheet_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/edit?usp=sharing"
+            st.link_button("🌐 Open Live Google Sheet Ledger", sheet_url, use_container_width=True)
         
     elif password != "":
         st.error("Invalid PIN.")
