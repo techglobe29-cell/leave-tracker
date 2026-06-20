@@ -11,6 +11,17 @@ hide_st_style = """
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             header {visibility: hidden;}
+            /* Custom styling to make primary buttons look like an alert red */
+            div.stButton > button[kind="primary"] {
+                background-color: #ff4b4b;
+                color: white;
+                border-color: #ff4b4b;
+            }
+            div.stButton > button[kind="primary"]:hover {
+                background-color: #ff3333;
+                color: white;
+                border-color: #ff3333;
+            }
             </style>
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
@@ -83,11 +94,25 @@ elif action == "Log Leave / Attendance":
     st.subheader("📝 Log EL or Comp Off Usage")
     df = st.session_state.employee_db
     
+    # Form initialization
     with st.form("log_form", clear_on_submit=True):
         sel_name = st.selectbox("Select Employee", df["Name"].tolist())
         d_sel = st.date_input("Date", datetime.today())
         status = st.selectbox("Type", ["Earned Leave (EL)", "Take Comp Off Leave"])
-        submit_btn = st.form_submit_button("Submit Record")
+        
+        # --- NEW BALANCE CHECK LOGIC ---
+        # Find selected employee's current EL balance
+        emp_row = df[df["Name"] == sel_name].iloc[0]
+        rem_el_bal = emp_row["Total Annual EL Quota"] - emp_row["EL Taken This Month"]
+        
+        # Dynamically change button type and show alert if balance < 2
+        is_low_balance = rem_el_bal < 2.0
+        
+        if is_low_balance:
+            st.warning(f"⚠️ Warning: {sel_name}'s remaining EL balance is low ({rem_el_bal} days left)!")
+            submit_btn = st.form_submit_button("Submit Record (Low Balance Alert)", type="primary")
+        else:
+            submit_btn = st.form_submit_button("Submit Record")
         
         if submit_btn:
             e_code = "EMP"
@@ -107,6 +132,7 @@ elif action == "Log Leave / Attendance":
                         
             new_log = pd.DataFrame([{"Date": d_sel.strftime("%Y-%m-%d"), "Emp Code": e_code, "Name": sel_name, "Type": status, "Status": "Approved"}])
             st.session_state.leave_history = pd.concat([st.session_state.leave_history, new_log], ignore_index=True)
+            st.rerun() # Refresh layout to update dynamic warning immediately if needed
 
 elif action == "Earn Overtime (Comp Off)":
     st.subheader("⏳ Log Overtime / Extra Shift to Earn Comp Off")
