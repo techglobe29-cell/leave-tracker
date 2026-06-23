@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import requests  # <-- Added for background Google Sheets automation
 from streamlit_option_menu import option_menu
 
 st.set_page_config(page_title="Kyndryl Resources Leave Tracker", layout="wide")
@@ -196,23 +197,41 @@ elif action == "Manager Approvals":
                 rej_btn = col_act.button("Reject", key=f"rej_{row['Log ID']}")
                 
                 if app_btn:
-                    db_idx = st.session_state.employee_db[st.session_state.employee_db["Name"] == row["Name"]].index[0]
-                    current_emp_data = st.session_state.employee_db.loc[db_idx]
+                    # Your automatically injected Google Web App Macro URL
+                    MACRO_URL = "https://script.google.com/macros/s/AKfycbzcZ-sn3yY0EdapTs2gNB8ITGyuFTK6LWzxCYllb6jmV7x5LCEtfM9g_XFotUZY32AS/exec"
                     
-                    # Deduct balance only after explicit approval check
-                    if row["Type"] == "Take Comp Off Leave":
-                        if current_emp_data["Comp Off Balance"] >= 1.0:
-                            st.session_state.employee_db.at[db_idx, "Comp Off Balance"] -= 1.0
-                            st.session_state.leave_history.at[idx, "Status"] = "Approved"
-                            st.toast("Comp Off approved successfully!")
-                            st.rerun()
+                    # Prepare the data payload packet
+                    payload = {
+                        "name": row['Name'],
+                        "type": row['Type']
+                    }
+                    
+                    try:
+                        # Direct call to trigger Google Apps Script logic
+                        response = requests.post(MACRO_URL, json=payload, headers={"Content-Type": "application/json"})
+                        
+                        if response.status_code == 200:
+                            db_idx = st.session_state.employee_db[st.session_state.employee_db["Name"] == row["Name"]].index[0]
+                            current_emp_data = st.session_state.employee_db.loc[db_idx]
+                            
+                            # Update statuses and local dataframe sync layout instantly
+                            if row["Type"] == "Take Comp Off Leave":
+                                if current_emp_data["Comp Off Balance"] >= 1.0:
+                                    st.session_state.employee_db.at[db_idx, "Comp Off Balance"] -= 1.0
+                                    st.session_state.leave_history.at[idx, "Status"] = "Approved"
+                                    st.toast(f"✅ Approved! Live Google Sheet and local cells updated for {row['Name']}.", icon="📊")
+                                    st.rerun()
+                                else:
+                                    st.error(f"Cannot approve. {row['Name']} no longer has enough local Comp Off balance.")
+                            elif row["Type"] == "Earned Leave (EL)":
+                                st.session_state.employee_db.at[db_idx, "EL Taken This Month"] += 1.0
+                                st.session_state.leave_history.at[idx, "Status"] = "Approved"
+                                st.toast(f"✅ Approved! Live Google Sheet and local cells updated for {row['Name']}.", icon="📊")
+                                st.rerun()
                         else:
-                            st.error(f"Cannot approve. {row['Name']} no longer has enough Comp Off balance.")
-                    elif row["Type"] == "Earned Leave (EL)":
-                        st.session_state.employee_db.at[db_idx, "EL Taken This Month"] += 1.0
-                        st.session_state.leave_history.at[idx, "Status"] = "Approved"
-                        st.toast("Earned Leave approved successfully!")
-                        st.rerun()
+                            st.error(f"Failed to connect with the Google Sheet macro server. Status code: {response.status_code}")
+                    except Exception as e:
+                        st.error(f"Error syncing with Google Sheets: {e}")
                         
                 if rej_btn:
                     st.session_state.leave_history.at[idx, "Status"] = "Rejected"
