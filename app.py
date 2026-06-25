@@ -69,86 +69,64 @@ df_master["Remaining EL Balance"] = df_master["Total Annual EL Quota"] - df_mast
 
 
 # --- TWO-COLUMN WORKSPACE LAYOUT ---
-# Left Column handles the Navigation Menu panel, Right Column loads the respective application forms
 nav_col, content_col = st.columns([1, 3.2], gap="large")
 
 with nav_col:
     st.write("### 🖥️ Main Menu")
     action = option_menu(
-        menu_title=None, # Hides structural heading block
-        options=["Employee Portal", "View Dashboard", "Log Leave Request", "Earn Overtime", "Manager Approvals", "Add Employee"],
-        icons=["person-workspace", "speedometer2", "pencil-square", "hourglass-split", "check2-circle", "person-plus"],
+        menu_title=None, 
+        options=["Employee Portal", "Log Leave Request", "Earn Overtime", "Manager Approvals", "Add Employee"],
+        icons=["person-workspace", "pencil-square", "hourglass-split", "check2-circle", "person-plus"],
         default_index=0,
         styles={
             "container": {"padding": "0px", "background-color": "#f8f9fa"},
             "nav-link": {"font-size": "15px", "text-align": "left", "margin": "4px", "--hover-color": "#eee"},
-            "nav-link-selected": {"background-color": "#ff4b4b", "color": "white"} # Matches red selection vibe from mockup
+            "nav-link-selected": {"background-color": "#ff4b4b", "color": "white"}
         }
     )
 
 
 with content_col:
-    # --- ACTION 1: EMPLOYEE PORTAL (MAIN PAGE FROM MOCKUP) ---
+    # --- ACTION 1: CENTRAL EMPLOYEE PORTAL ---
     if action == "Employee Portal":
         st.title("🏢 Kyndryl Resources Leave Tracker")
         st.subheader("📝 Leave Portal Dashboard")
-        st.markdown("Select your name below to view your current personal workspace leave updates.")
+        st.markdown("Select your name to view personal balances, or check the team summary below.")
         
         # User dropdown selection
         names_list = ["-- Choose Name --"] + df_master["Name"].tolist()
         selected_user = st.selectbox("Select Your Name:", names_list)
         
+        # Show Personal Metric Section ONLY if a valid name is picked
         if selected_user != "-- Choose Name --":
-            # Filter targeted employee values out from dataset
             emp_info = df_master[df_master["Name"] == selected_user].iloc[0]
+            st.markdown(f"### 👋 Personal Balance: **{selected_user}**")
             
-            st.markdown(f"### 👋 Welcome back, **{selected_user}**!")
-            
-            # Displays the personal stats inside dynamic metrics tiles
             with st.container(border=True):
                 m_col1, m_col2, m_col3 = st.columns(3)
                 m_col1.metric("Remaining EL Balance", f"{emp_info['Remaining EL Balance']} Days")
                 m_col2.metric("Comp Off Balance", f"{emp_info['Comp Off Balance']} Days")
                 m_col3.metric("EL Booked This Month", f"{emp_info['EL Taken This Month']} Days")
-            
-            # Check for recent transactions linked to this individual
-            st.markdown("#### 📜 Your Leave Application Statuses")
-            user_logs = st.session_state.leave_history[st.session_state.leave_history["Name"] == selected_user]
-            if not user_logs.empty:
-                st.dataframe(user_logs[["Date", "Type", "Status"]], use_container_width=True, hide_index=True)
-            else:
-                st.info("No leave activities logged under your profile index this month.")
-
-    # --- ACTION 2: VIEW DASHBOARD ---
-    elif action == "View Dashboard":
-        st.title("📊 Operational Summary Dashboard")
-        st.markdown("Easily monitor monthly attendance, live EL balances, and manage team workflows.")
+        
         st.divider()
         
-        with st.container(border=True):
-            st.markdown("#### 📈 Key Metrics")
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Total Employees", len(df_master))
-            col2.metric("Total Active Comp Off Days", f"{df_master['Comp Off Balance'].sum()} Days")
-            pending_count = len(st.session_state.leave_history[st.session_state.leave_history["Status"] == "Pending Approval"])
-            col3.metric("Pending Approvals", pending_count, delta="- Actions Needed" if pending_count > 0 else "All Clean")
-            col4.metric("Total Logs Processed", len(st.session_state.leave_history))
+        # --- CENTRALIZED TEAM LEAVE BALANCE SHEET (Visible to All) ---
+        st.markdown("### 📋 Central Team Leave Balances")
+        st.markdown("All employee metrics and remaining holiday balances are listed transparently below:")
         
-        st.markdown("### 📊 Leave Allocation Breakdown")
-        chart_data = df_master[["Name", "Remaining EL Balance", "EL Taken This Month"]].set_index("Name")
-        st.bar_chart(chart_data, y=["Remaining EL Balance", "EL Taken This Month"], height=350)
+        # Selectable view for clean reporting
+        st.dataframe(
+            df_master[["Emp Code", "Name", "Department", "Comp Off Balance", "Remaining EL Balance", "EL Taken This Month", "Approver Name"]], 
+            use_container_width=True, 
+            hide_index=True
+        )
         
-        st.markdown("### Employee Master Sheet")
-        st.dataframe(df_master, use_container_width=True)
-        
-        csv = df_master.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Download Master Sheet Report (CSV)", data=csv, file_name=f"Leave_Master_{cur_month}.csv", mime="text/csv")
-        
+        # Shared Log history so everyone sees pending updates
         if not st.session_state.leave_history.empty:
-            st.markdown("### Recent Activity Logs")
-            st.dataframe(st.session_state.leave_history, use_container_width=True)
+            st.markdown("#### 📜 Recent Activity & Approval Logs")
+            st.dataframe(st.session_state.leave_history[["Date", "Name", "Type", "Status"]], use_container_width=True, hide_index=True)
 
-    # --- ACTION 3: LOG LEAVE REQUEST ---
+    # --- ACTION 2: LOG LEAVE REQUEST ---
     elif action == "Log Leave Request":
         st.title("📝 Log Leave Request")
         with st.form("log_form", clear_on_submit=True):
@@ -181,7 +159,7 @@ with content_col:
                 st.success(f"Leave request successfully queued for approval for {sel_name}!")
                 st.rerun()
 
-    # --- ACTION 4: EARN OVERTIME ---
+    # --- ACTION 3: EARN OVERTIME ---
     elif action == "Earn Overtime":
         st.title("⏳ Log Overtime / Extra Shift to Earn Comp Off")
         with st.form("overtime_form", clear_on_submit=True):
@@ -209,7 +187,7 @@ with content_col:
                 st.toast(f"Credited {days_earned} Comp Off day(s) to {sel_name}!", icon="➕")
                 st.rerun()
 
-    # --- ACTION 5: MANAGER APPROVALS ---
+    # --- ACTION 4: MANAGER APPROVALS ---
     elif action == "Manager Approvals":
         st.title("🔑 Approver Control Panel (Logged in as: Kulwant)")
         lh = st.session_state.leave_history
@@ -262,7 +240,7 @@ with content_col:
                         st.toast("Leave Request Rejected")
                         st.rerun()
 
-    # --- ACTION 6: ADD EMPLOYEE ---
+    # --- ACTION 5: ADD EMPLOYEE ---
     elif action == "Add Employee":
         st.title("➕ Onboard New Team Member")
         with st.form("add_emp_form", clear_on_submit=True):
