@@ -14,6 +14,18 @@ hide_st_style = """
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             header {visibility: hidden;}
+            
+            /* Make primary buttons look like an alert red */
+            div.stButton > button[kind="primary"] {
+                background-color: #ff4b4b;
+                color: white;
+                border-color: #ff4b4b;
+            }
+            div.stButton > button[kind="primary"]:hover {
+                background-color: #ff3333;
+                color: white;
+                border-color: #ff3333;
+            }
             </style>
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
@@ -44,12 +56,30 @@ with st.sidebar:
         default_index=0
     )
 
+# --- FETCH BALANCES FOR CENTRAL DISPLAY ---
+bal_df = None
+try:
+    bal_csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/gviz/tq?tqx=out:csv&sheet=Balances"
+    bal_df = pd.read_csv(bal_csv_url)
+    bal_df.columns = bal_df.columns.str.strip()
+except Exception as e:
+    st.error("Error connecting to the live balance data stream.")
+
 # ====================================================================
-# VIEW 1: EMPLOYEE PORTAL (SECURED WITH PIN)
+# VIEW 1: EMPLOYEE PORTAL
 # ====================================================================
 if role == "Employee Portal":
     st.subheader("📝 Leave Portal Dashboard")
-    st.markdown("Select your name and enter your private PIN to access your personal workspace.")
+    
+    # 🌟 NEW ADDITION: Public Central Team Balances Section (Always Visible)
+    if bal_df is not None:
+        st.markdown("### 📊 Central Team Leave Balances")
+        st.dataframe(bal_df, use_container_width=True, hide_index=True)
+    st.divider()
+
+    # Protected Personal Action Panel Section
+    st.markdown("### 🔐 Personal Workspace Actions")
+    st.markdown("Select your name and enter your private PIN to submit requests or view your personal history.")
     
     selected_name = st.selectbox("Select Your Name:", ["-- Choose Name --"] + list(EMP_DETAILS.keys()))
     
@@ -68,31 +98,24 @@ if role == "Employee Portal":
                 icon="⚠️"
             )
             
-            # 📊 LIVE METERING SECTION
-            with st.container(border=True):
-                st.markdown("#### 📊 Personal Balance Statement")
-                try:
-                    bal_csv_url = "https://docs.google.com/spreadsheets/d/1CqNHI54xg4zE4v66pdF0HkJbMlW-fnQhlLK2ijenTzI/gviz/tq?tqx=out:csv&sheet=Balances"
-                    bal_df = pd.read_csv(bal_csv_url)
-                    bal_df.columns = bal_df.columns.str.strip()
-                    bal_df['Name'] = bal_df['Name'].astype(str).str.strip().str.lower()
+            # 📊 INDIVIDUAL METRICS SECTION
+            if bal_df is not None:
+                with st.container(border=True):
+                    st.markdown(f"#### 📊 Personal Balance Summary for {selected_name}")
                     
-                    user_bal = bal_df[bal_df['Name'] == selected_name.strip().lower()]
+                    # Work on copy to normalize comparison matchings without modifying global structure
+                    temp_df = bal_df.copy()
+                    temp_df['Name'] = temp_df['Name'].astype(str).str.strip().str.lower()
+                    user_bal = temp_df[temp_df['Name'] == selected_name.strip().lower()]
                     
                     if not user_bal.empty:
                         m1, m2, m3, m4 = st.columns(4)
-                        with m1:
-                            st.metric("EL Quota", float(user_bal['Leave Quota'].values[0]))
-                        with m2:
-                            st.metric("EL Taken", float(user_bal['Leave Taken'].values[0]))
-                        with m3:
-                            st.metric("EL Balance", float(user_bal['Leave Balance'].values[0]))
-                        with m4:
-                            st.metric("Comp Off Balance", float(user_bal['Comp Off Balance'].values[0]))
+                        m1.metric("EL Quota", float(user_bal['Leave Quota'].values[0]))
+                        m2.metric("EL Taken", float(user_bal['Leave Taken'].values[0]))
+                        m3.metric("EL Balance", float(user_bal['Leave Balance'].values[0]))
+                        m4.metric("Comp Off Balance", float(user_bal['Comp Off Balance'].values[0]))
                     else:
-                        st.warning(f"⚠️ Profile matched, but no balance records found in the spreadsheet tab yet.")
-                except Exception as e:
-                    st.error("Cannot read metrics from the server database.")
+                        st.warning(f"⚠️ Profile matched, but no specific balance records found inside ledger.")
                 
             st.divider()
             
@@ -101,8 +124,6 @@ if role == "Employee Portal":
             with tab1:
                 with st.form("native_leave_form", clear_on_submit=True):
                     leave_date = st.date_input("Select Date:", datetime.today())
-                    
-                    # STREAMLINED OPTIONS: Only EL and Comp Off actions are available now
                     leave_type = st.selectbox("Leave Type:", ["Earned Leave (EL)", "Take Comp Off Leave", "Earn Overtime (Comp Off)"])
                     
                     ot_credit = 0.0
