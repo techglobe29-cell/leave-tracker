@@ -45,7 +45,6 @@ if 'employee_db' not in st.session_state:
     })
 
 if 'leave_history' not in st.session_state:
-    # Adding a couple of sample pending logs for presentation
     st.session_state.leave_history = pd.DataFrame([
         {"Log ID": 101, "Date": "2026-06-18", "Emp Code": "Emp02", "Name": "Mandeep Rawat", "Type": "Earned Leave (EL)", "Status": "Pending Approval"},
         {"Log ID": 102, "Date": "2026-06-19", "Emp Code": "Emp05", "Name": "Sanket Moharana", "Type": "Take Comp Off Leave", "Status": "Pending Approval"}
@@ -64,192 +63,218 @@ if cur_month != st.session_state.last_month:
         st.session_state.employee_db.at[idx, "EL Taken This Month"] = 0.0
     st.session_state.last_month = cur_month
 
-st.title("📊 Kyndryl Resources Leave Tracker Pro")
-st.markdown("Easily monitor monthly attendance, live EL balances, and manage team workflows.")
-st.divider()
-
-with st.sidebar:
-    action = option_menu(
-        menu_title="Actions Panel",
-        options=["View Dashboard", "Log Leave / Attendance", "Earn Overtime (Comp Off)", "Manager Approvals", "Add New Employee"],
-        icons=["speedometer2", "pencil-square", "hourglass-split", "check2-circle", "person-plus"],
-        menu_icon="sliders",
-        default_index=0
-    )
-
+# Prepare operational data frame
 df_master = st.session_state.employee_db.copy()
 df_master["Remaining EL Balance"] = df_master["Total Annual EL Quota"] - df_master["EL Taken This Month"]
 
-if action == "View Dashboard":
-    st.subheader("🗓️ Operational Summary Dashboard")
-    
-    with st.container(border=True):
-        st.markdown("#### 📈 Key Metrics")
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total Employees", len(df_master))
-        col2.metric("Total Active Comp Off Days", f"{df_master['Comp Off Balance'].sum()} Days")
-        pending_count = len(st.session_state.leave_history[st.session_state.leave_history["Status"] == "Pending Approval"])
-        col3.metric("Pending Approvals", pending_count, delta="- Actions Needed" if pending_count > 0 else "All Clean")
-        col4.metric("Total Logs Processed", len(st.session_state.leave_history))
-    
-    # Visual Analytics Section
-    st.markdown("### 📊 Leave Allocation Breakdown")
-    chart_data = df_master[["Name", "Remaining EL Balance", "EL Taken This Month"]].set_index("Name")
-    st.bar_chart(chart_data, y=["Remaining EL Balance", "EL Taken This Month"], height=350)
-    
-    st.markdown("### Employee Master Sheet")
-    st.dataframe(df_master, use_container_width=True)
-    
-    # Report Export
-    csv = df_master.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Download Master Sheet Report (CSV)", data=csv, file_name=f"Leave_Master_{cur_month}.csv", mime="text/csv")
-    
-    if not st.session_state.leave_history.empty:
-        st.markdown("### Recent Activity Logs")
-        st.dataframe(st.session_state.leave_history, use_container_width=True)
 
-elif action == "Log Leave / Attendance":
-    st.subheader("📝 Log Leave Request")
-    
-    with st.form("log_form", clear_on_submit=True):
-        sel_name = st.selectbox("Select Employee", df_master["Name"].tolist())
-        d_sel = st.date_input("Date of Leave", datetime.today())
-        status = st.selectbox("Type", ["Earned Leave (EL)", "Take Comp Off Leave"])
-        
-        # Balance Alert System
-        emp_row = df_master[df_master["Name"] == sel_name].iloc[0]
-        rem_el_bal = emp_row["Remaining EL Balance"]
-        
-        is_low_balance = (rem_el_bal < 2.0 and status == "Earned Leave (EL)") or (emp_row["Comp Off Balance"] < 1.0 and status == "Take Comp Off Leave")
-        
-        if is_low_balance:
-            st.warning(f"⚠️ warning: {sel_name}'s balance is critically low! (EL Remainder: {rem_el_bal} Days | Comp Off: {emp_row['Comp Off Balance']} Days)")
-            submit_btn = st.form_submit_button("Submit Request Anyway (Low Balance)", type="primary")
-        else:
-            submit_btn = st.form_submit_button("Submit Leave Request")
-        
-        if submit_btn:
-            e_code = emp_row["Emp Code"]
-            new_id = int(datetime.timestamp(datetime.now())) # Create a unique ID for workflows
-            
-            new_log = pd.DataFrame([{
-                "Log ID": new_id, 
-                "Date": d_sel.strftime("%Y-%m-%d"), 
-                "Emp Code": e_code, 
-                "Name": sel_name, 
-                "Type": status, 
-                "Status": "Pending Approval"
-            }])
-            st.session_state.leave_history = pd.concat([st.session_state.leave_history, new_log], ignore_index=True)
-            st.success(f"Leave request successfully queued for approval for {sel_name}!")
-            st.rerun()
+# --- TWO-COLUMN WORKSPACE LAYOUT ---
+# Left Column handles the Navigation Menu panel, Right Column loads the respective application forms
+nav_col, content_col = st.columns([1, 3.2], gap="large")
 
-elif action == "Earn Overtime (Comp Off)":
-    st.subheader("⏳ Log Overtime / Extra Shift to Earn Comp Off")
-    
-    with st.form("overtime_form", clear_on_submit=True):
-        sel_name = st.selectbox("Select Employee", df_master["Name"].tolist())
-        d_worked = st.date_input("Date of Extra Shift", datetime.today())
-        days_earned = st.number_input("Comp Off Days Earned", min_value=0.5, max_value=2.0, value=1.0, step=0.5)
-        notes = st.text_input("Reason / Operational Requirement Note")
-        submit_ot = st.form_submit_button("Grant Comp Off Credit")
-        
-        if submit_ot:
-            emp_row = df_master[df_master["Name"] == sel_name].iloc[0]
-            idx = df_master[df_master["Name"] == sel_name].index[0]
-            
-            # Instantly update overtime since it is a grand balance boost from an admin
-            st.session_state.employee_db.at[idx, "Comp Off Balance"] += days_earned
-            
-            new_id = int(datetime.timestamp(datetime.now()))
-            new_log = pd.DataFrame([{
-                "Log ID": new_id, 
-                "Date": d_worked.strftime("%Y-%m-%d"), 
-                "Emp Code": emp_row["Emp Code"], 
-                "Name": sel_name, 
-                "Type": f"Earned Comp Off (+{days_earned})", 
-                "Status": f"Approved: {notes}"
-            }])
-            st.session_state.leave_history = pd.concat([st.session_state.leave_history, new_log], ignore_index=True)
-            st.toast(f"Credited {days_earned} Comp Off day(s) to {sel_name}!", icon="➕")
-            st.rerun()
+with nav_col:
+    st.write("### 🖥️ Main Menu")
+    action = option_menu(
+        menu_title=None, # Hides structural heading block
+        options=["Employee Portal", "View Dashboard", "Log Leave Request", "Earn Overtime", "Manager Approvals", "Add Employee"],
+        icons=["person-workspace", "speedometer2", "pencil-square", "hourglass-split", "check2-circle", "person-plus"],
+        default_index=0,
+        styles={
+            "container": {"padding": "0px", "background-color": "#f8f9fa"},
+            "nav-link": {"font-size": "15px", "text-align": "left", "margin": "4px", "--hover-color": "#eee"},
+            "nav-link-selected": {"background-color": "#ff4b4b", "color": "white"} # Matches red selection vibe from mockup
+        }
+    )
 
-elif action == "Manager Approvals":
-    st.subheader("🔑 Approver Control Panel (Logged in as: Kulwant)")
-    
-    # Target only rows flagged as Pending
-    lh = st.session_state.leave_history
-    pending_df = lh[lh["Status"] == "Pending Approval"]
-    
-    if pending_df.empty:
-        st.info("🎉 Hooray! There are no outstanding leave approvals pending decision.")
-    else:
-        for idx, row in pending_df.iterrows():
+
+with content_col:
+    # --- ACTION 1: EMPLOYEE PORTAL (MAIN PAGE FROM MOCKUP) ---
+    if action == "Employee Portal":
+        st.title("🏢 Kyndryl Resources Leave Tracker")
+        st.subheader("📝 Leave Portal Dashboard")
+        st.markdown("Select your name below to view your current personal workspace leave updates.")
+        
+        # User dropdown selection
+        names_list = ["-- Choose Name --"] + df_master["Name"].tolist()
+        selected_user = st.selectbox("Select Your Name:", names_list)
+        
+        if selected_user != "-- Choose Name --":
+            # Filter targeted employee values out from dataset
+            emp_info = df_master[df_master["Name"] == selected_user].iloc[0]
+            
+            st.markdown(f"### 👋 Welcome back, **{selected_user}**!")
+            
+            # Displays the personal stats inside dynamic metrics tiles
             with st.container(border=True):
-                col_i, col_n, col_t, col_d, col_act = st.columns([1, 2, 2, 2, 3])
-                col_i.write(f"**ID:** {row['Log ID']}")
-                col_n.write(f"**Name:** {row['Name']}")
-                col_t.write(f"**Type:** {row['Type']}")
-                col_d.write(f"**Date:** {row['Date']}")
-                
-                # Inline Action Buttons
-                app_btn = col_act.button("Approve", key=f"app_{row['Log ID']}", type="secondary")
-                rej_btn = col_act.button("Reject", key=f"rej_{row['Log ID']}")
-                
-                if app_btn:
-                    # Your automatically injected Google Web App Macro URL
-                    MACRO_URL = "https://script.google.com/macros/s/AKfycbzcZ-sn3yY0EdapTs2gNB8ITGyuFTK6LWzxCYllb6jmV7x5LCEtfM9g_XFotUZY32AS/exec"
-                    
-                    # Prepare the data payload packet
-                    payload = {
-                        "name": row['Name'],
-                        "type": row['Type']
-                    }
-                    
-                    try:
-                        # Direct call to trigger Google Apps Script logic
-                        response = requests.post(MACRO_URL, json=payload, headers={"Content-Type": "application/json"})
-                        
-                        if response.status_code == 200:
-                            db_idx = st.session_state.employee_db[st.session_state.employee_db["Name"] == row["Name"]].index[0]
-                            current_emp_data = st.session_state.employee_db.loc[db_idx]
-                            
-                            # Update statuses and local dataframe sync layout instantly
-                            if row["Type"] == "Take Comp Off Leave":
-                                if current_emp_data["Comp Off Balance"] >= 1.0:
-                                    st.session_state.employee_db.at[db_idx, "Comp Off Balance"] -= 1.0
-                                    st.session_state.leave_history.at[idx, "Status"] = "Approved"
-                                    st.toast(f"✅ Approved! Live Google Sheet and local cells updated for {row['Name']}.", icon="📊")
-                                    st.rerun()
-                                else:
-                                    st.error(f"Cannot approve. {row['Name']} no longer has enough local Comp Off balance.")
-                            elif row["Type"] == "Earned Leave (EL)":
-                                st.session_state.employee_db.at[db_idx, "EL Taken This Month"] += 1.0
-                                st.session_state.leave_history.at[idx, "Status"] = "Approved"
-                                st.toast(f"✅ Approved! Live Google Sheet and local cells updated for {row['Name']}.", icon="📊")
-                                st.rerun()
-                        else:
-                            st.error(f"Failed to connect with the Google Sheet macro server. Status code: {response.status_code}")
-                    except Exception as e:
-                        st.error(f"Error syncing with Google Sheets: {e}")
-                        
-                if rej_btn:
-                    st.session_state.leave_history.at[idx, "Status"] = "Rejected"
-                    st.toast("Leave Request Rejected")
-                    st.rerun()
+                m_col1, m_col2, m_col3 = st.columns(3)
+                m_col1.metric("Remaining EL Balance", f"{emp_info['Remaining EL Balance']} Days")
+                m_col2.metric("Comp Off Balance", f"{emp_info['Comp Off Balance']} Days")
+                m_col3.metric("EL Booked This Month", f"{emp_info['EL Taken This Month']} Days")
+            
+            # Check for recent transactions linked to this individual
+            st.markdown("#### 📜 Your Leave Application Statuses")
+            user_logs = st.session_state.leave_history[st.session_state.leave_history["Name"] == selected_user]
+            if not user_logs.empty:
+                st.dataframe(user_logs[["Date", "Type", "Status"]], use_container_width=True, hide_index=True)
+            else:
+                st.info("No leave activities logged under your profile index this month.")
 
-elif action == "Add New Employee":
-    st.subheader("➕ Onboard New Team Member")
-    with st.form("add_emp_form", clear_on_submit=True):
-        n_id = st.text_input("Emp Code:")
-        n_name = st.text_input("Name:")
-        dept = st.text_input("Dept:")
-        quota = st.number_input("EL Quota:", min_value=0, value=5)
-        submit_emp = st.form_submit_button("Save Record")
+    # --- ACTION 2: VIEW DASHBOARD ---
+    elif action == "View Dashboard":
+        st.title("📊 Operational Summary Dashboard")
+        st.markdown("Easily monitor monthly attendance, live EL balances, and manage team workflows.")
+        st.divider()
         
-        if submit_emp:
-            if n_id and n_name:
-                new_row = pd.DataFrame([{"Emp Code": n_id, "Name": n_name, "Department": dept, "Total Annual EL Quota": quota, "EL Taken This Month": 0.0, "Comp Off Balance": 0.0, "Approver Name": "Kulwant"}])
-                st.session_state.employee_db = pd.concat([st.session_state.employee_db, new_row], ignore_index=True)
-                st.toast("New profile added successfully!", icon="👤")
+        with st.container(border=True):
+            st.markdown("#### 📈 Key Metrics")
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Total Employees", len(df_master))
+            col2.metric("Total Active Comp Off Days", f"{df_master['Comp Off Balance'].sum()} Days")
+            pending_count = len(st.session_state.leave_history[st.session_state.leave_history["Status"] == "Pending Approval"])
+            col3.metric("Pending Approvals", pending_count, delta="- Actions Needed" if pending_count > 0 else "All Clean")
+            col4.metric("Total Logs Processed", len(st.session_state.leave_history))
+        
+        st.markdown("### 📊 Leave Allocation Breakdown")
+        chart_data = df_master[["Name", "Remaining EL Balance", "EL Taken This Month"]].set_index("Name")
+        st.bar_chart(chart_data, y=["Remaining EL Balance", "EL Taken This Month"], height=350)
+        
+        st.markdown("### Employee Master Sheet")
+        st.dataframe(df_master, use_container_width=True)
+        
+        csv = df_master.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Download Master Sheet Report (CSV)", data=csv, file_name=f"Leave_Master_{cur_month}.csv", mime="text/csv")
+        
+        if not st.session_state.leave_history.empty:
+            st.markdown("### Recent Activity Logs")
+            st.dataframe(st.session_state.leave_history, use_container_width=True)
+
+    # --- ACTION 3: LOG LEAVE REQUEST ---
+    elif action == "Log Leave Request":
+        st.title("📝 Log Leave Request")
+        with st.form("log_form", clear_on_submit=True):
+            sel_name = st.selectbox("Select Employee", df_master["Name"].tolist())
+            d_sel = st.date_input("Date of Leave", datetime.today())
+            status = st.selectbox("Type", ["Earned Leave (EL)", "Take Comp Off Leave"])
+            
+            emp_row = df_master[df_master["Name"] == sel_name].iloc[0]
+            rem_el_bal = emp_row["Remaining EL Balance"]
+            is_low_balance = (rem_el_bal < 2.0 and status == "Earned Leave (EL)") or (emp_row["Comp Off Balance"] < 1.0 and status == "Take Comp Off Leave")
+            
+            if is_low_balance:
+                st.warning(f"⚠️ warning: {sel_name}'s balance is critically low! (EL Remainder: {rem_el_bal} Days | Comp Off: {emp_row['Comp Off Balance']} Days)")
+                submit_btn = st.form_submit_button("Submit Request Anyway (Low Balance)", type="primary")
+            else:
+                submit_btn = st.form_submit_button("Submit Leave Request")
+            
+            if submit_btn:
+                e_code = emp_row["Emp Code"]
+                new_id = int(datetime.timestamp(datetime.now()))
+                new_log = pd.DataFrame([{
+                    "Log ID": new_id, 
+                    "Date": d_sel.strftime("%Y-%m-%d"), 
+                    "Emp Code": e_code, 
+                    "Name": sel_name, 
+                    "Type": status, 
+                    "Status": "Pending Approval"
+                }])
+                st.session_state.leave_history = pd.concat([st.session_state.leave_history, new_log], ignore_index=True)
+                st.success(f"Leave request successfully queued for approval for {sel_name}!")
                 st.rerun()
+
+    # --- ACTION 4: EARN OVERTIME ---
+    elif action == "Earn Overtime":
+        st.title("⏳ Log Overtime / Extra Shift to Earn Comp Off")
+        with st.form("overtime_form", clear_on_submit=True):
+            sel_name = st.selectbox("Select Employee", df_master["Name"].tolist())
+            d_worked = st.date_input("Date of Extra Shift", datetime.today())
+            days_earned = st.number_input("Comp Off Days Earned", min_value=0.5, max_value=2.0, value=1.0, step=0.5)
+            notes = st.text_input("Reason / Operational Requirement Note")
+            submit_ot = st.form_submit_button("Grant Comp Off Credit")
+            
+            if submit_ot:
+                emp_row = df_master[df_master["Name"] == sel_name].iloc[0]
+                idx = df_master[df_master["Name"] == sel_name].index[0]
+                st.session_state.employee_db.at[idx, "Comp Off Balance"] += days_earned
+                
+                new_id = int(datetime.timestamp(datetime.now()))
+                new_log = pd.DataFrame([{
+                    "Log ID": new_id, 
+                    "Date": d_worked.strftime("%Y-%m-%d"), 
+                    "Emp Code": emp_row["Emp Code"], 
+                    "Name": sel_name, 
+                    "Type": f"Earned Comp Off (+{days_earned})", 
+                    "Status": f"Approved: {notes}"
+                }])
+                st.session_state.leave_history = pd.concat([st.session_state.leave_history, new_log], ignore_index=True)
+                st.toast(f"Credited {days_earned} Comp Off day(s) to {sel_name}!", icon="➕")
+                st.rerun()
+
+    # --- ACTION 5: MANAGER APPROVALS ---
+    elif action == "Manager Approvals":
+        st.title("🔑 Approver Control Panel (Logged in as: Kulwant)")
+        lh = st.session_state.leave_history
+        pending_df = lh[lh["Status"] == "Pending Approval"]
+        
+        if pending_df.empty:
+            st.info("🎉 Hooray! There are no outstanding leave approvals pending decision.")
+        else:
+            for idx, row in pending_df.iterrows():
+                with st.container(border=True):
+                    col_i, col_n, col_t, col_d, col_act = st.columns([1, 2, 2, 2, 3])
+                    col_i.write(f"**ID:** {row['Log ID']}")
+                    col_n.write(f"**Name:** {row['Name']}")
+                    col_t.write(f"**Type:** {row['Type']}")
+                    col_d.write(f"**Date:** {row['Date']}")
+                    
+                    app_btn = col_act.button("Approve", key=f"app_{row['Log ID']}", type="secondary")
+                    rej_btn = col_act.button("Reject", key=f"rej_{row['Log ID']}")
+                    
+                    if app_btn:
+                        MACRO_URL = "https://script.google.com/macros/s/AKfycbzcZ-sn3yY0EdapTs2gNB8ITGyuFTK6LWzxCYllb6jmV7x5LCEtfM9g_XFotUZY32AS/exec"
+                        payload = {"name": row['Name'], "type": row['Type']}
+                        
+                        try:
+                            response = requests.post(MACRO_URL, json=payload, headers={"Content-Type": "application/json"})
+                            if response.status_code == 200:
+                                db_idx = st.session_state.employee_db[st.session_state.employee_db["Name"] == row["Name"]].index[0]
+                                current_emp_data = st.session_state.employee_db.loc[db_idx]
+                                
+                                if row["Type"] == "Take Comp Off Leave":
+                                    if current_emp_data["Comp Off Balance"] >= 1.0:
+                                        st.session_state.employee_db.at[db_idx, "Comp Off Balance"] -= 1.0
+                                        st.session_state.leave_history.at[idx, "Status"] = "Approved"
+                                        st.toast(f"✅ Approved! Live Google Sheet updated for {row['Name']}.", icon="📊")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Cannot approve. {row['Name']} no longer has enough balance.")
+                                elif row["Type"] == "Earned Leave (EL)":
+                                    st.session_state.employee_db.at[db_idx, "EL Taken This Month"] += 1.0
+                                    st.session_state.leave_history.at[idx, "Status"] = "Approved"
+                                    st.toast(f"✅ Approved! Live Google Sheet updated for {row['Name']}.", icon="📊")
+                                    st.rerun()
+                            else:
+                                st.error(f"Failed to connect with macro server. Code: {response.status_code}")
+                        except Exception as e:
+                            st.error(f"Error syncing with Google Sheets: {e}")
+                            
+                    if rej_btn:
+                        st.session_state.leave_history.at[idx, "Status"] = "Rejected"
+                        st.toast("Leave Request Rejected")
+                        st.rerun()
+
+    # --- ACTION 6: ADD EMPLOYEE ---
+    elif action == "Add Employee":
+        st.title("➕ Onboard New Team Member")
+        with st.form("add_emp_form", clear_on_submit=True):
+            n_id = st.text_input("Emp Code:")
+            n_name = st.text_input("Name:")
+            dept = st.text_input("Dept:")
+            quota = st.number_input("EL Quota:", min_value=0, value=5)
+            submit_emp = st.form_submit_button("Save Record")
+            
+            if submit_emp:
+                if n_id and n_name:
+                    new_row = pd.DataFrame([{"Emp Code": n_id, "Name": n_name, "Department": dept, "Total Annual EL Quota": quota, "EL Taken This Month": 0.0, "Comp Off Balance": 0.0, "Approver Name": "Kulwant"}])
+                    st.session_state.employee_db = pd.concat([st.session_state.employee_db, new_row], ignore_index=True)
+                    st.toast("New profile added successfully!", icon="👤")
+                    st.rerun()
